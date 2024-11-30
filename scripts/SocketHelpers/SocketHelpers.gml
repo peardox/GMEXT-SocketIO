@@ -1,0 +1,175 @@
+global.time = get_timer();
+global.frame = 0;
+global.elapsed = 0;
+global.last_log = "";
+
+enum ENGINEIO_MSG { OPEN, CLOSE, PING, PONG, MESSAGE, UPGRADE, NOOP }
+enum SOCKETIO_MSG { CONNECT, DISCONNECT, EVENT, ACK, CONNECTION_ERROR, BINARY_EVENT, BINARY_ACK }
+enum WEBSOCKET_FRAME { CONTINUATION, TEXT, BINARY, CLOSE = 8, PING, PONG }
+enum CONNECTION_STATE { NONE, IDLE, READY, ACTIVE }
+
+function runlog(_txt) {
+	if(global.last_log <> _txt) {
+		show_debug_message(_txt);
+		global.last_log = _txt;
+	}
+}
+function websocket_client_create_text_frame(_data) {
+	var _datalen = string_length(_data);
+	var _buflen = _datalen + 8;
+	var _mask = array_create(4);
+	var _mask_length_bits = 0;
+	if((_datalen >= 0) && (_datalen < 126)) {
+		_mask_length_bits = _datalen;
+	}
+	if(_datalen > 125) {
+		_buflen = _buflen + 2;
+		_mask_length_bits = $7E;
+	} if(_datalen > 65535) {
+		_buflen = _buflen + 4;
+		_mask_length_bits = $7F;
+	}
+		
+	var _buffer = buffer_create(_buflen, buffer_fixed, 1);
+	buffer_write(_buffer, buffer_u8, $81); 
+	buffer_write(_buffer, buffer_u8, $80 | _mask_length_bits); 
+		
+	for(var _i=0; _i < 4; _i++) {
+		_mask[_i] = irandom(255);
+		buffer_write(_buffer, buffer_u8, _mask[_i]); 
+	}
+
+	var _byte_index, _masked_data, _mask_byte, _mask_index;
+	for(var _i=0; _i < _datalen; _i++) {
+		_mask_index = _i mod 4;
+		_mask_byte = _mask[_mask_index];
+		_byte_index = _i + 1;
+		_masked_data = ord(string_char_at(_data, _byte_index));
+		_masked_data = _masked_data & 80;
+		_masked_data = _masked_data ^ _mask_byte;
+		buffer_write(_buffer, buffer_u8, _masked_data ); 
+	}
+		
+	return _buffer;
+}
+
+
+function hex(_str) {
+    var _result = int64(0);
+    
+    // special unicode values
+    static _zero = ord("0");
+    static _nine = ord("9");
+    static _a = ord("A");
+    static _f = ord("F");
+    
+    for (var _i = 1; _i <= string_length(_str); _i++) {
+        var _c = ord(string_char_at(string_upper(_str), _i));
+        // you could also multiply by 16 but you get more nerd points for bitshifts
+        _result = _result << 4;
+        // if the character is a number or letter, add the value
+        // it represents to the total
+        if ((_c >= _zero) && (_c <= _nine)) {
+            _result = _result + (_c - _zero);
+        } else if ((_c >= _a) && (_c <= _f)) {
+            _result = _result + ((_c - _a) + 10);
+        // otherwise complain
+        } else {
+            throw "bad input for hex(str): " + _str;
+        }
+    }
+    
+    return _result;
+}
+
+function base_64_encode_hex(_hex_str) {
+	var _i, _hex_byte, _hex_byte_str, _buf, _rval;
+	var _sl = string_length(_hex_str);
+	
+	if((_sl	== 0) || (_sl mod 2) == 1) {
+		throw "bad input for base_64_encode_hex: " + _hex_str;
+	}
+	
+
+	_buf = buffer_create(_sl / 2, buffer_fixed, 1);
+	
+	for(_i = 0; _i < (_sl / 2); _i++) {
+		_hex_byte_str = string_copy(_hex_str, (_i * 2) + 1, 2);
+		_hex_byte = hex(_hex_byte_str);
+		buffer_write(_buf, buffer_u8, _hex_byte);
+	}
+	
+	_rval = buffer_base64_encode(_buf, 0, _sl /2);
+	
+	buffer_delete(_buf);
+	
+	return _rval;
+}
+
+function validate_nonce(_nonce) {
+	var _i, _rval, _sha1, _buf;
+	var _s = _nonce  + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+	var _sl = string_length(_s);
+
+	_buf = buffer_create(_sl, buffer_fixed, 1);
+
+	if(buffer_write(_buf, buffer_text, _s) == 0) {
+		_sha1 = buffer_sha1(_buf, 0, _sl);
+	} else {
+		throw "Buffer write failed: " + _s;
+	}
+	
+	_rval = base_64_encode_hex(_sha1);	
+	
+	buffer_delete(_buf);
+	
+	return _rval;
+}
+
+function make_nonce() {
+	var _buf = buffer_create(16, buffer_fixed, 1);
+	for(var _i = 0; _i < 16; _i++) {
+		buffer_write(_buf, buffer_u8, irandom(255));
+	}
+	var _ret = buffer_base64_encode(_buf, 0, 16);
+	buffer_delete(_buf);
+	return _ret;
+}
+
+function url_encode(_orig) {
+	var _new = "";
+	var _char = 0;
+	var _tmp = 0;
+	var _ans = 0;
+	var _ps = 0;
+	for (_ps=1; _ps<=string_length(_orig); _ps+=1)
+	    {
+	    _char = string_char_at(_orig,_ps);
+	    _char = ord(_char);
+	    if (_char < 32) || (_char > 126) || (_char == 36) || (_char == 38) || (_char == 43) || (_char == 44) || (_char == 47) || (_char == 58) || (_char == 59) || (_char == 61) || (_char == 63) || (_char == 64) || (_char == 32) || (_char == 34) || (_char == 60) || (_char == 62) || (_char == 35) || (_char == 37) || (_char == 123) || (_char == 125) || (_char == 124) || (_char == 92) || (_char == 94) || (_char == 126) || (_char == 91) || (_char == 93) || (_char == 96)
+	        {
+	        _tmp = floor(_char/16);
+	        _ans = _char-_tmp*16;
+	        _tmp = string(_tmp);
+	        if (_tmp = "10") _tmp = "A";
+	        if (_tmp = "11") _tmp = "B";
+	        if (_tmp = "12") _tmp = "C";
+	        if (_tmp = "13") _tmp = "D";
+	        if (_tmp = "14") _tmp = "E";
+	        if (_tmp = "15") _tmp = "F";
+	        _ans = string(_ans);
+	        if (_ans = "10") _ans = "A";
+	        if (_ans = "11") _ans = "B";
+	        if (_ans = "12") _ans = "C";
+	        if (_ans = "13") _ans = "D";
+	        if (_ans = "14") _ans = "E";
+	        if (_ans = "15") _ans = "F";
+	        _new = _new+"%"+_tmp+_ans;
+	        }
+	    else
+	        {
+	        _new = _new+chr(_char);
+	        }
+	   }
+	return _new;
+}

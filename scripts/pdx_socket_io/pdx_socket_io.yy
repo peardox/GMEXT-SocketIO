@@ -1,0 +1,13 @@
+{
+  "$GMScript":"v1",
+  "%Name":"pdx_socket_io",
+  "isCompatibility":false,
+  "isDnD":false,
+  "name":"pdx_socket_io",
+  "parent":{
+    "name":"Scripts",
+    "path":"folders/SocketIO/Scripts.yy",
+  },
+  "resourceType":"GMScript",
+  "resourceVersion":"2.0",
+}

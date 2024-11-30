@@ -1,0 +1,13 @@
+{
+  "$GMScript":"v1",
+  "%Name":"SocketHelpers",
+  "isCompatibility":false,
+  "isDnD":false,
+  "name":"SocketHelpers",
+  "parent":{
+    "name":"Scripts",
+    "path":"folders/SocketIO/Scripts.yy",
+  },
+  "resourceType":"GMScript",
+  "resourceVersion":"2.0",
+}
