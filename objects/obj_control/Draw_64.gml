@@ -1,6 +1,6 @@
 function get_state(_obj, _con) {
 	var _rval = undefined;
-	var _inst = _obj.socket;
+	var _inst = _obj.io;
 	if(!is_undefined(_inst)) {
 		var _val = struct_get(_inst, _con);
 		if(!is_undefined(_val)) {
@@ -32,8 +32,8 @@ draw_set_halign(fa_left);
 var _inbound = get_state(obj_engineio, "inbound");
 var _outbound = get_state(obj_engineio, "outbound");
 
-draw_text(16, 16, "Inbound       = " + string(_inbound));
-draw_text(16, 32, "Outbound      = " + string(_outbound));
+draw_text(16, 16, "Inbound Port  = " + string(_inbound));
+draw_text(16, 32, "Outbound Port = " + string(_outbound));
 /*
 if(has_response) {
 	var _keys = variable_struct_get_names(response_struct);

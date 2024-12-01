@@ -1,4 +1,4 @@
-runlog("== EngineIO Async Network");
+// runlog("== EngineIO Async Network");
 /*
 if(async_load == -1) {
 	exit;

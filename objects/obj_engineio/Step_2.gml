@@ -2,27 +2,28 @@
 // You can write your code in this editor
 runlog("== EngineIO End Step");
 
-if(!is_instanceof(socket, EngineIO)) {
+// feather ignore once GM1041
+if(!is_instanceof(io, EngineIO)) {
 	exit;
 }
 
-if(socket.state <> CONNECTION_STATE.READY) {
+if(io.state <> CONNECTION_STATE.READY) {
 	exit;
 }
 
-if(!socket.inbound.connected || !socket.outbound.connected) {
+if(!io.inbound.connected || !io.outbound.connected) {
 	exit;
 }
 
-if(socket.outbound.state = CONNECTION_STATE.READY) {
-	if(socket.queuesize > 0) {
-		var _msg = socket.outbound.build_post_message();
+if(io.outbound.state = CONNECTION_STATE.READY) {
+	if(io.queuesize > 0) {
+		var _msg = io.outbound.build_post_message();
 		if(string_length(_msg) > 0) {
-			socket.outbound.post(_msg);
+			io.outbound.post(_msg);
 		}
 	}
 }
 
-if(socket.inbound.state = CONNECTION_STATE.READY) {
-	socket.inbound.get();
+if(io.inbound.state = CONNECTION_STATE.READY) {
+	io.inbound.get();
 }

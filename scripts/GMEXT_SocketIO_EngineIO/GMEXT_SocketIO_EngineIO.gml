@@ -1,3 +1,10 @@
+// feather ignore once GM2017
+function CreateSocketIO(_io) {
+	// io = _io;
+	instance_create_depth(-1, -1, 0, obj_engineio, { io: _io });
+	return true;
+}
+	
 function MessageQueue(_size) constructor {
 	self.queue_size = 0;
 	self.members = array_create(0);
@@ -61,16 +68,23 @@ function EngineIO(_url, _port, _scheme = "http", _path = "/socket.io/", _transpo
 	self.path = "";
 	self.transport = "";
 	self.engine_version = 0;
+
 	self.state = CONNECTION_STATE.NONE;
-	self.pingtime = -1;
-	self.ping_id = -1;
+
 	self.inbound = -1;
 	self.outbound = -1;
+
+	self.pingtime = -1;
+	self.ping_id = -1;
+
     self.sid = "";
-    self.upgrades = [];
-    self.ping_interval = 0;
+	self.ping_interval = 0;
     self.ping_imeout = 0;
     self.max_payload = 0;
+	self.upgrades = [];
+
+	self.upgrade = UPGRADE_STATE.NONE;
+
 	self.http_response = new HTTPResponseParser(undefined);
 	self.debug = false;
 	
