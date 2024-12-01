@@ -1,9 +1,9 @@
 {
   "$GMScript":"v1",
-  "%Name":"pdx_engine_io",
+  "%Name":"GMEXT_SocketIO_SocketIO",
   "isCompatibility":false,
   "isDnD":false,
-  "name":"pdx_engine_io",
+  "name":"GMEXT_SocketIO_SocketIO",
   "parent":{
     "name":"Scripts",
     "path":"folders/SocketIO/Scripts.yy",

@@ -12,11 +12,11 @@ function MessageQueue(_size) constructor {
 	
 	static push = function(_value) {
 		head++;
-		
+		members[head] = _value;
+
 		if(head < queue_size) {
-			members[head] = _value;
-//		} else {
-//			throw("Trying to add too many messages");
+			array_resize(members, queue_size + 20);
+			queue_size = queue_size + 20
 		}
 	}
 	
