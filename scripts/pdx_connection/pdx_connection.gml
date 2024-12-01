@@ -5,6 +5,7 @@ function SocketConnection(_owner, _type) constructor {
 	self.connected = false;
 	self.state = CONNECTION_STATE.NONE;
 	self.debug = true;
+	self.nonse = "";
 	self.type = "";
 	
 	static new_connection = function() {
@@ -54,6 +55,55 @@ function SocketConnection(_owner, _type) constructor {
 						    "Referer: " + owner.full_url() + "/\r\n" +
 						    "Accept-Encoding: gzip, deflate\r\n" +
 						    "Accept-Language: en-GB,en-US;q=0.9,en;q=0.8,af;q=0.7,en-CA;q=0.6\r\n" +
+							"\r\n";
+						
+		var _sl = string_length(_http_message);
+		var _sock_buffer = buffer_create(0, buffer_grow, 1);
+		buffer_write(_sock_buffer, buffer_text, _http_message);
+		var _bytes = network_send_raw(network_id, _sock_buffer,  _sl);
+		buffer_delete(_sock_buffer);
+		if(_bytes <> _sl) {
+			if(debug) {
+				if(_bytes == -1) {
+					show_debug_message("Socket Get Failed");
+				} else {
+					show_debug_message("Socket Get Sent Wrong Data Length");
+				}
+			}
+			state = CONNECTION_STATE.NONE;
+			owner.state = CONNECTION_STATE.NONE;
+			return false;
+		}
+		if(debug) {
+			show_debug_message("Sent Get");
+		}
+		state = CONNECTION_STATE.ACTIVE;
+		return true;
+	}
+
+	static upgrade = function() {
+		if(debug) {
+			show_debug_message("GET " + owner.path + "?" + owner.query());
+		}
+		
+		// Set the upgrade headers
+		nonce = make_nonce(); // "AQIDBAUGBwgJCgsMDQ4PEC==";
+		// Create a nonce for Sec-WebSocket-Key
+		var _http_message = "GET " + owner.path + "?" + owner.query() + " HTTP/1.1\r\n" +
+							"Host: " + owner.host() + "\r\n" +
+							"Accept: */*\r\n" +
+							"User-Agent: SocketTests\r\n" +
+							"Connection: keep-alive\r\n" + 
+							"Cache-Control: no-cache\r\n" + 
+						    "Origin: " + owner.full_url() + "\r\n" +
+						    "Referer: " + owner.full_url() + "/\r\n" +
+						    "Accept-Encoding: gzip, deflate\r\n" +
+						    "Accept-Language: en-GB,en-US;q=0.9,en;q=0.8,af;q=0.7,en-CA;q=0.6\r\n" +
+							"Connection: Upgrade\r\n" +
+							"Upgrade: websocket\r\n" +
+							"Sec-WebSocket-Key: " + nonce + "\r\n" +
+							"Sec-WebSocket-Version: 13\r\n" +
+							"sec-websocket-extensions: permessage-deflate; client_max_window_bits\r\n" +
 							"\r\n";
 						
 		var _sl = string_length(_http_message);

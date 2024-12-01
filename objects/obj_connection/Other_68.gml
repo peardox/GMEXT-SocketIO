@@ -11,7 +11,6 @@ if(async_load == -1) {
 
 var _id = ds_map_find_value(async_load, "id");
 var _socket = ds_map_find_value(async_load, "socket");
-var _buffer = ds_map_find_value(async_load, "buffer");
 var _type = ds_map_find_value(async_load, "type")
 var _inspect_http = async_load;
 
@@ -21,15 +20,23 @@ if((con.network_id == _id) ) {
 		show_debug_message("Socket Connected - Blocking");
 	} else if(_type == network_type_non_blocking_connect) {
 		// type = 4
-		show_debug_message("Socket Connected - Non Blocking");
-		con.connected = true;
-		con.state = CONNECTION_STATE.READY;
-		con.owner.activate();
+		show_debug_message("Socket (" + string(_socket) + ") Connected - Non Blocking");
+		var _succeeded = ds_map_find_value(async_load, "succeeded");
+		if(_succeeded) {
+			con.connected = true;
+			con.state = CONNECTION_STATE.READY;
+			con.owner.activate();
+		} else {
+			show_debug_message("Socket (" + string(_socket) + ") Failed to Connect - Closing it down");
+			con.close();
+		}
 	} else if(_type == network_type_disconnect) {
 		show_debug_message("Socket Disconnect");
 		con.connected = false;
 	} else if(_type == network_type_data) {
 		show_debug_message("Socket Data");
+		var _buffer = ds_map_find_value(async_load, "buffer");
+		// var _size = ds_map_find_value(async_load, "size")
 		if(con.state = CONNECTION_STATE.ACTIVE) {
 			var _resp = con.handle_response(_buffer);
 			if(_resp == -1) {
@@ -37,12 +44,15 @@ if((con.network_id == _id) ) {
 				exit;
 			} else if(_resp == 0) {
 				con.state = CONNECTION_STATE.READY;	
-			} else {
+			}
+			
+			else {
 				if(con.owner.sid <> "") {
 					con.state = CONNECTION_STATE.READY;	
 				} else {
 					con.state = CONNECTION_STATE.IDLE;	
 				}
+				
 			}
 		}
 	}

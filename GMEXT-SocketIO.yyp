@@ -1,6 +1,6 @@
 {
   "$GMProject":"",
-  "%Name":"ObjectSocket",
+  "%Name":"GMEXT-SocketIO",
   "AudioGroups":[
     {"$GMAudioGroup":"","%Name":"audiogroup_default","name":"audiogroup_default","resourceType":"GMAudioGroup","resourceVersion":"2.0","targets":-1,},
   ],
@@ -30,14 +30,16 @@
     {"$GMFolder":"","%Name":"Timelines","folderPath":"folders/Timelines.yy","name":"Timelines","resourceType":"GMFolder","resourceVersion":"2.0",},
   ],
   "IncludedFiles":[
+    {"$GMIncludedFile":"","%Name":"fortunes.txt","CopyToMask":-1,"filePath":"datafiles","name":"fortunes.txt","resourceType":"GMIncludedFile","resourceVersion":"2.0",},
     {"$GMIncludedFile":"","%Name":"IBMPlexMono-Bold.woff","CopyToMask":-1,"filePath":"datafiles","name":"IBMPlexMono-Bold.woff","resourceType":"GMIncludedFile","resourceVersion":"2.0",},
+    {"$GMIncludedFile":"","%Name":"names.txt","CopyToMask":-1,"filePath":"datafiles","name":"names.txt","resourceType":"GMIncludedFile","resourceVersion":"2.0",},
   ],
   "isEcma":false,
   "LibraryEmitters":[],
   "MetaData":{
     "IDEVersion":"2024.8.1.171",
   },
-  "name":"ObjectSocket",
+  "name":"GMEXT-SocketIO",
   "resources":[
     {"id":{"name":"obj_button","path":"objects/obj_button/obj_button.yy",},},
     {"id":{"name":"obj_connection","path":"objects/obj_connection/obj_connection.yy",},},
