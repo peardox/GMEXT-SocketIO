@@ -5,7 +5,7 @@ global.last_log = "";
 
 enum ENGINEIO_MSG { OPEN, CLOSE, PING, PONG, MESSAGE, UPGRADE, NOOP }
 enum SOCKETIO_MSG { CONNECT, DISCONNECT, EVENT, ACK, CONNECTION_ERROR, BINARY_EVENT, BINARY_ACK }
-enum WEBSOCKET_FRAME { CONTINUATION, TEXT, BINARY, CLOSE = 8, PING, PONG }
+enum WEBSOCKET_OPCODE { CONTINUATION, TEXT, BINARY, CLOSE = 8, PING, PONG }
 enum CONNECTION_STATE { NONE, IDLE, READY, ACTIVE, PAUSE, UPGRADE, WEBSOCKET }
 enum UPGRADE_STATE { NONE, PENDING, INPROGRESS, ACTIVE, PAUSE, DOWNGRADE, IMMEDIATE }
 enum WEBSOCKET_TYPE { TEXT, BINARY }
@@ -20,52 +20,179 @@ function runlog(_txt, _dupe = false) {
 	}
 }
 
-function WebcocketFrame() constructor  {
+function EngineIOFrame(_message) constructor {
+	self.message_type = int64(-1);
+	self.message_text = "";
+	
+	if(typeof(_message) == "string") {
+		var _sl = string_length(_message);
+		if(_sl > 0) {
+			var _mt = ord(string_char_at(_message, 1)) - 48;
+			if((_mt >= ENGINEIO_MSG.OPEN) && (_mt <= ENGINEIO_MSG.NOOP)) {
+				message_type = _mt;
+				if(_sl > 1) {
+					message_text = string_copy(_message, 2, _sl - 1);
+				}
+			}
+		}
+	} else {
+		throw("Trying to create invalid EngineIOFrame");
+	}
+	
 }
 
-function websocket_decode_frame(_buf) {
+function WebSocketFrame(_buffer) constructor  {
+	self.valid = true;
+	self.fin = false;
+	self.opcode = int64(-1);
+	self.masked = false;
+	self.datalen  = int64(0);
+	self.data = undefined;
+	
+	static as_string = function() {
+		if(!is_undefined(data)) {
+			buffer_seek(data, buffer_seek_start, 0);
+			return buffer_read(data, buffer_text);
+		} else {
+			return "";
+		}
+	}
+
+	static _decode = function (_buf) {
+		var _buflen = buffer_get_size(_buf);
+		var _byte = 0;
+	
+		if(_buflen < 2) {
+			// If the buffer is under 2 bytes this is a bad frame
+			return _frame;
+		}
+	
+		buffer_seek(_buf, buffer_seek_start, 0);
+	
+		// Decode first byte
+		_byte = buffer_read(_buf, buffer_u8);
+		if((_byte & $70) <> 0) {
+			// If bits 4-6 are non-zero this is a bad frame
+			return _frame;
+		}
+		fin = ((_byte & $80) <> 0);
+		opcode = (_byte & $0000000F);
+		if(((opcode > 2) && (opcode < 8)) || (opcode > 10)) {
+			// Only opcodes 0, 1, 2, 8, 9 + 10 are valid this is a bad frame
+			// Proper values are enumerated in WEBSOCKET_OPCODE
+			return _frame;
+		}
+	
+		// Decode second byte
+		_byte = buffer_read(_buf, buffer_u8);
+		masked = ((_byte & $80) <> 0);
+		if(masked) {
+			// We're a client, server responses are never masked so this is a bad frame
+			return _frame;
+		}
+	
+		datalen = (_byte & $7F);
+		if(datalen == 0) {
+			// This is a valid frame with no data - i.e. just an opcode
+			valid = true;
+			return _frame;
+		}
+	
+		var _bufpos = 2;
+		// Buffer is variable length so keep track of where it starts
+	
+		if(datalen == $7E) {
+			if(_buflen < 4) {
+				// Can't read next 2 bytes - bad frame
+				return _frame;
+			}
+			// Network order WORD
+			datalen = buffer_read(_buf, buffer_u8) << 8;
+			datalen = data_len | buffer_read(_buf, buffer_u8);
+			_bufpos = _bufpos + 2;
+		}
+	
+		if(datalen == $7F) {
+			if(_buflen < 6) {
+				// Can't read next 4 bytes - bad frame
+				return _frame;
+			}
+			// Network order WORD
+			datalen = buffer_read(_buf, buffer_u8) << 24;
+			datalen = data_len | (buffer_read(_buf, buffer_u8) << 16);
+			datalen = data_len | (buffer_read(_buf, buffer_u8) << 8);
+			datalen = data_len | buffer_read(_buf, buffer_u8);
+			_bufpos = _bufpos + 4;
+		}
+	
+		if(_buflen < (_bufpos + datalen)) {
+			// Can't read entire buffer - bad frame
+			return _frame;
+		}
+	
+		data = buffer_create(datalen, buffer_fixed, 1);
+		buffer_copy(_buf, _bufpos, datalen, data, 0);
+	
+		valid = true;
+	}
+	
+	if((typeof(_buffer) == "ref") && buffer_exists(_buffer))  {
+		_decode(_buffer);
+	}
+
 }
 
 function websocket_text_frame(_data) {
 	var _datalen = string_length(_data);
-	var _buflen = _datalen + 8;
-	var _mask = array_create(4);
+	var _buflen = _datalen + 2; // 2 byte header
 	var _mask_length_bits = 0;
-	if((_datalen >= 0) && (_datalen < 126)) {
-		_mask_length_bits = _datalen;
-	}
-	if(_datalen > 125) {
-		_buflen = _buflen + 2;
-		_mask_length_bits = $7E;
-	} if(_datalen > 65535) {
+	var _mask;
+	if(_datalen > 0) {
+		_mask = array_create(4);
 		_buflen = _buflen + 4;
-		_mask_length_bits = $7F;
+		if((_datalen > 0) && (_datalen < 126)) {
+			_mask_length_bits = _datalen;
+		} else if((_datalen > 125) && (_datalen <= 65535)) {
+			_buflen = _buflen + 2;
+			_mask_length_bits = $7E;
+		} else if(_datalen > 65535) {
+			_buflen = _buflen + 4;
+			_mask_length_bits = $7F;
+		}
 	}
 		
 	var _buffer = buffer_create(_buflen, buffer_fixed, 1);
 	buffer_write(_buffer, buffer_u8, $81); 
 	buffer_write(_buffer, buffer_u8, $80 | _mask_length_bits); 
-		
-	_mask[0] = 0x2A;
-	_mask[1] = 0xEC;
-	_mask[2] = 0x93;
-	_mask[3] = 0xFB;
-	
-	for(var _i=0; _i < 4; _i++) {
-		// _mask[_i] = irandom(255);
-		buffer_write(_buffer, buffer_u8, _mask[_i]); 
+	if(_mask_length_bits == $7E) {
+		// Network order WORD
+		buffer_write(_buffer, buffer_u8, (_datalen & $FF)); 
+		buffer_write(_buffer, buffer_u8, ((_datalen >> 8 ) & $FF)); 
+	} else if(_mask_length_bits == $7F) {
+		// Network order QWORD
+		buffer_write(_buffer, buffer_u8, (_datalen & $FF)); 
+		buffer_write(_buffer, buffer_u8, ((_datalen >> 8 ) & $FF)); 
+		buffer_write(_buffer, buffer_u8, ((_datalen >> 16 ) & $FF)); 
+		buffer_write(_buffer, buffer_u8, ((_datalen >> 24 ) & $FF)); 
 	}
+		
+	if(_datalen > 0) {
+		for(var _i=0; _i < 4; _i++) {
+			_mask[_i] = irandom(255);
+			buffer_write(_buffer, buffer_u8, _mask[_i]); 
+		}
 
-	var _byte_index, _masked_data, _mask_byte, _mask_index;
-	for(var _i=0; _i < _datalen; _i++) {
-		_mask_index = _i mod 4;
-		_mask_byte = _mask[_mask_index];
-		_byte_index = _i + 1;
-		_masked_data = ord(string_char_at(_data, _byte_index));
-		_masked_data = _masked_data ^ _mask_byte;
-		buffer_write(_buffer, buffer_u8, _masked_data ); 
+		var _byte_index, _masked_data, _mask_byte, _mask_index;
+		for(var _i=0; _i < _datalen; _i++) {
+			_mask_index = _i mod 4;
+			_mask_byte = _mask[_mask_index];
+			_byte_index = _i + 1;
+			_masked_data = ord(string_char_at(_data, _byte_index));
+			_masked_data = _masked_data ^ _mask_byte;
+			buffer_write(_buffer, buffer_u8, _masked_data ); 
+		}
 	}
-		
+	
 	return _buffer;
 }
 
@@ -188,65 +315,6 @@ function url_encode(_orig) {
 	        }
 	   }
 	return _new;
-}
-
-function WebSocketFrame(_data, _is_client = true) constructor {
-	self.fin = true;
-	self.opcode = -1;
-	self.mask = false;
-	self.data_len = 0;
-	self.is_client = 0;
-
-	static parse = function(_data) {
-		var _u8, _len;
-		_u8 = buffer_read(_data, buffer_u8);
-		fin = (_u8 & $80) = $80;
-		opcode = (_u8 & $0F);
-		_u8 = buffer_read(_data, buffer_u8);
-		mask = (_u8 & $80) = $80;
-		_len = (_u8 & $7F);
-		if((_len >= 0) || (_len < 126)) {
-			data_len = _len;
-		} else if(_len == 126) {
-			data_len = buffer_read(_data, buffer_u16);
-		} else if(_len == 127) {
-			data_len = buffer_read(_data, buffer_u32);
-		} else {
-			throw("WebSocketFrame : Bad Frame Length");
-		}
-		
-		if(is_client && mask) {
-			throw("WebSocketFrame : Mask found for client");
-		} else if(!is_client && !mask) {
-			throw("WebSocketFrame : Mask missing for server");
-		}
-		
-		if(opcode == 0) {
-		} else if(opcode == 0) {
-			show_debug_message("Continuation Frame");
-		} else if(opcode == 1) {
-			show_debug_message("Text Frame");
-		} else if(opcode == 2) {
-			show_debug_message("Binary Frame");
-		} else if(opcode == 8) {
-			show_debug_message("Close Frame");
-		} else if(opcode == 9) {
-			show_debug_message("Ping Frame");
-		} else if(opcode == 10) {
-			show_debug_message("Pong Frame");
-		} else {
-			throw("WebSocketFrame : Got Reserved Opcode (" + string(opcode) + ")");
-		}
-	}
-	
-	static random_byte = function() {
-		return irandom(255);
-	}
-	
-	if((typeof(_data) == "ref") && buffer_exists(_data))  {
-		is_client = _is_client;
-		parse(_data);
-	}
 }
 
 ///@func HTTPResponseParser(data)

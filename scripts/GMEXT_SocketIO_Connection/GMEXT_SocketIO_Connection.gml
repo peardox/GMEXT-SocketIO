@@ -331,9 +331,9 @@ function SocketConnection(_owner, _type, _usage) constructor {
 			return false;
 		}
 		if(debug) {
-			show_debug_message("Sent WebSocket : " + _message);
+			show_debug_message("Sent WebSocket : " + _message + " - " + string(_blen) + " bytes");
 		}
-		
+		concount++;
 		return true;
 	}
 	
@@ -342,7 +342,7 @@ function SocketConnection(_owner, _type, _usage) constructor {
 		var _valid = struct_get(_headers, "Sec-WebSocket-Accept");
 		if(is_string(_valid) && (_valid == _expecting)) {
 			state = CONNECTION_STATE.WEBSOCKET;
-			owner.emit(ENGINEIO_MSG.PING, "probe");
+			owner.websocket.websocket_send(event_to_string(ENGINEIO_MSG.PING) + "probe", WEBSOCKET_TYPE.TEXT);
 			return true;
 		}
 		return false;

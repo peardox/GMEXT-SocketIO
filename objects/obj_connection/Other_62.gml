@@ -22,7 +22,7 @@ if((con.req_id == _id) && !is_undefined(_http_status)) {
 		case 200:
 			var _resp = con.handle_response(_result);
 			if(_resp == -1) {
-				show_debug_message("Socket Closed");
+				show_debug_message("HTTP Socket Closed");
 				exit;
 			} else if(_resp == 0) {
 				con.state = CONNECTION_STATE.READY;	

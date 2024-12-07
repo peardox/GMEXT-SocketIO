@@ -3,6 +3,10 @@ function CreateSocketIO(_engine_io) {
 	return instance_create_depth(-1, -1, 0, obj_engineio, { engine_io: _engine_io });
 }
 
+function event_to_string(_evt) {
+	return chr(_evt + 48);
+}
+
 function SocketIOMessage(_type, _message) constructor {
 	self.message_type = int64(0);
 	self.message_text = "";
@@ -129,19 +133,19 @@ function SocketIO(_url, _port, _scheme = "http", _path = "/socket.io/", _engine_
 	static emit = function(_evt, _msg = undefined, _callback = undefined) {
 		if(transport == SOCKET_TRANSPORT.WEBSOCKET) {
 			if(!is_undefined(_callback)) {
-				websocket.websocket_send(chr(_evt + 48) + _msg, WEBSOCKET_TYPE.TEXT);
+				websocket.websocket_send(event_to_string(ENGINEIO_MSG.MESSAGE) + event_to_string(SOCKETIO_MSG.EVENT) + json_stringify([_evt, _msg, _callback]), WEBSOCKET_TYPE.TEXT);
 			} else if(!is_undefined(_msg)) {
-				websocket.websocket_send(chr(_evt + 48) + _msg, WEBSOCKET_TYPE.TEXT);
+				websocket.websocket_send(event_to_string(ENGINEIO_MSG.MESSAGE) + event_to_string(SOCKETIO_MSG.EVENT) + json_stringify([_evt, _msg]), WEBSOCKET_TYPE.TEXT);
 			} else {
-				websocket.websocket_send(chr(_evt + 48), WEBSOCKET_TYPE.TEXT);
+				websocket.websocket_send(event_to_string(ENGINEIO_MSG.MESSAGE) + event_to_string(SOCKETIO_MSG.EVENT) + json_stringify([_evt]), WEBSOCKET_TYPE.TEXT);
 			}
 		} else if(transport == SOCKET_TRANSPORT.POLLING) {
 			if(!is_undefined(_callback)) {
-				outbound.emit(ENGINEIO_MSG.MESSAGE,  "2" + json_stringify([_evt, _msg, _callback]));
+				outbound.emit(ENGINEIO_MSG.MESSAGE,  event_to_string(SOCKETIO_MSG.EVENT) + json_stringify([_evt, _msg, _callback]));
 			} else if(!is_undefined(_msg)) {
-				outbound.emit(ENGINEIO_MSG.MESSAGE,  "2" + json_stringify([_evt, _msg]));
+				outbound.emit(ENGINEIO_MSG.MESSAGE,  event_to_string(SOCKETIO_MSG.EVENT) + json_stringify([_evt, _msg]));
 			} else {
-				outbound.emit(ENGINEIO_MSG.MESSAGE,  "2" + json_stringify([_evt]));
+				outbound.emit(ENGINEIO_MSG.MESSAGE,  event_to_string(SOCKETIO_MSG.EVENT) + json_stringify([_evt]));
 			}
 		} else {
 			throw("Bad transport");
