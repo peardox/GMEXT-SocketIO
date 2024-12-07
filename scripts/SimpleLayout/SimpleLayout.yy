@@ -1,12 +1,12 @@
 {
   "$GMScript":"v1",
-  "%Name":"GMEXT_SocketIO_EngineIO",
+  "%Name":"SimpleLayout",
   "isCompatibility":false,
   "isDnD":false,
-  "name":"GMEXT_SocketIO_EngineIO",
+  "name":"SimpleLayout",
   "parent":{
     "name":"Scripts",
-    "path":"folders/SocketIO/Scripts.yy",
+    "path":"folders/UI/Scripts.yy",
   },
   "resourceType":"GMScript",
   "resourceVersion":"2.0",

@@ -6,17 +6,27 @@ global.last_log = "";
 enum ENGINEIO_MSG { OPEN, CLOSE, PING, PONG, MESSAGE, UPGRADE, NOOP }
 enum SOCKETIO_MSG { CONNECT, DISCONNECT, EVENT, ACK, CONNECTION_ERROR, BINARY_EVENT, BINARY_ACK }
 enum WEBSOCKET_FRAME { CONTINUATION, TEXT, BINARY, CLOSE = 8, PING, PONG }
-enum CONNECTION_STATE { NONE, IDLE, READY, ACTIVE, PAUSE, UPGRADE }
-enum UPGRADE_STATE { NONE, PENDING, ACTIVE, PAUSE, DOWNGRADE }
+enum CONNECTION_STATE { NONE, IDLE, READY, ACTIVE, PAUSE, UPGRADE, WEBSOCKET }
+enum UPGRADE_STATE { NONE, PENDING, INPROGRESS, ACTIVE, PAUSE, DOWNGRADE, IMMEDIATE }
+enum WEBSOCKET_TYPE { TEXT, BINARY }
+enum SOCKET_TYPE { NONE, HTTP, WEBSOCKET }
+enum SOCKET_USAGE { NONE, HTTP_GET, HTTP_POST, WEBSOCKET }
+enum SOCKET_TRANSPORT { NONE, POLLING, WEBSOCKET }
 
-
-function runlog(_txt) {
-	if(global.last_log <> _txt) {
+function runlog(_txt, _dupe = false) {
+	if((global.last_log <> _txt) || _dupe) {
 		show_debug_message(_txt);
 		global.last_log = _txt;
 	}
 }
-function websocket_client_create_text_frame(_data) {
+
+function WebcocketFrame() constructor  {
+}
+
+function websocket_decode_frame(_buf) {
+}
+
+function websocket_text_frame(_data) {
 	var _datalen = string_length(_data);
 	var _buflen = _datalen + 8;
 	var _mask = array_create(4);
@@ -36,8 +46,13 @@ function websocket_client_create_text_frame(_data) {
 	buffer_write(_buffer, buffer_u8, $81); 
 	buffer_write(_buffer, buffer_u8, $80 | _mask_length_bits); 
 		
+	_mask[0] = 0x2A;
+	_mask[1] = 0xEC;
+	_mask[2] = 0x93;
+	_mask[3] = 0xFB;
+	
 	for(var _i=0; _i < 4; _i++) {
-		_mask[_i] = irandom(255);
+		// _mask[_i] = irandom(255);
 		buffer_write(_buffer, buffer_u8, _mask[_i]); 
 	}
 
@@ -47,7 +62,6 @@ function websocket_client_create_text_frame(_data) {
 		_mask_byte = _mask[_mask_index];
 		_byte_index = _i + 1;
 		_masked_data = ord(string_char_at(_data, _byte_index));
-		_masked_data = _masked_data & 80;
 		_masked_data = _masked_data ^ _mask_byte;
 		buffer_write(_buffer, buffer_u8, _masked_data ); 
 	}
@@ -261,7 +275,7 @@ function HTTPResponseParser(_data) constructor {
 		}
 		
 		http_method = _http_line[0];
-		status = real(_http_line[1]);
+		status = int64(_http_line[1]);
 		code = _http_line[2];
 		
 		while(_lines[_header_index] <> "") {

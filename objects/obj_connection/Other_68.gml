@@ -1,5 +1,6 @@
 runlog("== Connection Async Network");
 
+// feather ignore GM2047
 // feather ignore once GM1041
 if(!is_instanceof(con, SocketConnection)) {
 	exit;
@@ -25,7 +26,10 @@ if((con.network_id == _id) ) {
 		if(_succeeded) {
 			con.connected = true;
 			con.state = CONNECTION_STATE.READY;
-			con.owner.activate();
+			// con.owner.activate();
+			if(con.owner.upgrade_state == UPGRADE_STATE.PENDING) {
+				con.get_async();
+			}
 		} else {
 			show_debug_message("Socket (" + string(_socket) + ") Failed to Connect - Closing it down");
 			con.close();
@@ -34,25 +38,41 @@ if((con.network_id == _id) ) {
 		show_debug_message("Socket Disconnect");
 		con.connected = false;
 	} else if(_type == network_type_data) {
-		show_debug_message("Socket Data");
+count++;
+		show_debug_message("Socket Data = " + string(count));
+		if(count == 2) {
+			show_debug_message("3probe");
+		}
 		var _buffer = ds_map_find_value(async_load, "buffer");
 		// var _size = ds_map_find_value(async_load, "size")
-		if(con.state = CONNECTION_STATE.ACTIVE) {
-			var _resp = con.handle_response(_buffer);
-			if(_resp == -1) {
-				show_debug_message("Socket Closed");
-				exit;
-			} else if(_resp == 0) {
-				con.state = CONNECTION_STATE.READY;	
-			}
-			
-			else {
-				if(con.owner.sid <> "") {
-					con.state = CONNECTION_STATE.READY;	
-				} else {
-					con.state = CONNECTION_STATE.IDLE;	
+		if(con.state = CONNECTION_STATE.WEBSOCKET) {
+			var _websocket_message = buffer_read(_buffer, buffer_string);
+			if(con.owner.upgrade_state == UPGRADE_STATE.ACTIVE) {
+				show_debug_message("==> WebSocket : " + _websocket_message);
+			} else if(con.owner.upgrade_state == UPGRADE_STATE.INPROGRESS) {
+				if(1) {// _websocket_message == "3probe") {
+					show_debug_message("3probe");
+					con.owner.emit(ENGINEIO_MSG.UPGRADE);
+					con.owner.upgrade_state = UPGRADE_STATE.ACTIVE;
 				}
-				
+			}
+		} else if(con.state = CONNECTION_STATE.ACTIVE) {
+			var _hdr = new HTTPResponseParser(_buffer);
+			switch(_hdr.status) {
+				case 101:
+					if(con.owner.upgrade_state == UPGRADE_STATE.INPROGRESS) {
+						if(con.handle_upgrade(_hdr.headers)) {
+							show_debug_message("===== Upgrade =====");
+						} else {
+							con.owner.upgrade_state = UPGRADE_STATE.NONE;
+						}
+					} else {
+						con.owner.upgrade_state = UPGRADE_STATE.NONE;
+					}
+					break;
+				default:
+					throw("Bad HTTP code");
+					break;
 			}
 		}
 	}

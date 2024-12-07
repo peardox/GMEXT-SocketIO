@@ -1,25 +1,35 @@
 runlog("Created Control")
-var _test = 2;
+#macro TXTPAD 8
 
-instance_create_depth(0, 0, 0, obj_button, {});
+
+var _test = 4;
+var _io;
+global.counter = 0;
 
 switch(_test) {
 	case 0:
-		io = new EngineIO( "cge.peardox.com", 3000 );
+		_io = new SocketIO( "cge.peardox.com", 3000 );
 		break;
 	case 1:
-		io = new EngineIO( "192.168.1.18", 13378 );
+		_io = new SocketIO( "192.168.1.18", 13378 );
 		break;
 	case 2:
-		io = new EngineIO( "cge.peardox.com", 3100 );
+		_io = new SocketIO( "cge.peardox.com", 3100 );
 		break;
 	case 3:
-		io = new EngineIO( "cge.peardox.com", 3200 );
+		_io = new SocketIO( "cge.peardox.com", 3200 );
+		break;
+	case 4:
+		_io = new SocketIO( "piserv.co.uk", 80 );
 		break;
 	default:
 }
 
-CreateSocketIO(io);
-io.debug = true;
-io.connect();
+socketio_inst = CreateSocketIO(_io);
+_io.debug = true;
+// _io.upgrade = UPGRADE_STATE.IMMEDIATE;
+_io.connect();
 
+
+instance_create_depth(0, 0, 0, obj_layout, { sio: socketio_inst});
+#macro EIO obj_engineio.engine_io
